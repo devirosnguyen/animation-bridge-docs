@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animation Bridge – Hướng dẫn</title>
+<meta name="description" content="Hướng dẫn dùng pipeline Unity → Text-to-Motion (MoMask) → Cascadeur → 3ds Max / Unity">
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#5f5d57;--line:#e3e0d8;--card:#ffffff;--accent:#2f6f5e;--accent-bg:#e6f1ed;--warn:#8a5a00;--warn-bg:#fff4dc;--code-bg:#f1efe9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151614;--fg:#e8e6e1;--muted:#a19e96;--line:#2e2f2b;--card:#1c1d1a;--accent:#7cc4ad;--accent-bg:#1d2e28;--warn:#f0c068;--warn-bg:#2e2615;--code-bg:#24251f}}
+:root[data-theme="dark"]{--bg:#151614;--fg:#e8e6e1;--muted:#a19e96;--line:#2e2f2b;--card:#1c1d1a;--accent:#7cc4ad;--accent-bg:#1d2e28;--warn:#f0c068;--warn-bg:#2e2615;--code-bg:#24251f}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px;display:grid;grid-template-columns:220px 1fr;gap:40px}
+nav{position:sticky;top:0;align-self:start;padding:32px 0;font-size:14px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:4px 0}
+nav a:hover{color:var(--accent)}
+main{padding:32px 0 80px;min-width:0}
+h1{font-size:2rem;line-height:1.2;margin:0 0 8px}
+h2{font-size:1.35rem;margin:48px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:24px 0 8px}
+.lead{color:var(--muted);margin:0 0 24px}
+a{color:var(--accent)}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:var(--code-bg);padding:1px 5px;border-radius:4px}
+pre{background:var(--code-bg);padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:13.5px;line-height:1.5}
+pre code{background:none;padding:0}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 8px}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow b{color:var(--muted);font-weight:400}
+.note,.warn{border-radius:8px;padding:10px 14px;margin:14px 0}
+.note{background:var(--accent-bg)}
+.warn{background:var(--warn-bg);color:var(--fg)}
+.warn strong{color:var(--warn)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:12px 0}
+th,td{text-align:left;border-bottom:1px solid var(--line);padding:7px 8px;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.tw{overflow-x:auto}
+ol li,ul li{margin:4px 0}
+kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--card)}
+.theme{position:fixed;top:12px;right:12px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px}
+@media (max-width:800px){.wrap{grid-template-columns:1fr;gap:0}nav{position:static;padding:24px 0 0;columns:2}main{padding-top:8px}}
+</style>
+</head>
+<body>
+<button class="theme" onclick="toggleTheme()">Sáng / Tối</button>
+<div class="wrap">
+<nav>
+  <a href="#tong-quan">Tổng quan</a>
+  <a href="#cai-dat">Cài đặt</a>
+  <a href="#dung-nhanh">Dùng nhanh</a>
+  <a href="#unity">Cửa sổ Unity</a>
+  <a href="#prompt">Viết prompt</a>
+  <a href="#cascadeur">Trong Cascadeur</a>
+  <a href="#template">Template rig</a>
+  <a href="#autophysics">AutoPhysics</a>
+  <a href="#ket-qua">Đưa về Unity / 3ds Max</a>
+  <a href="#cau-hinh">Cấu hình</a>
+  <a href="#loi">Lỗi thường gặp</a>
+  <a href="#gioi-han">Giới hạn</a>
+</nav>
+<main>
+<h1>Animation Bridge</h1>
+<p class="lead">Hướng dẫn dùng pipeline bán tự động: nhập prompt trong Unity, nhận animation trên nhân vật đã rig trong Cascadeur, chỉnh bằng AutoPhysics, rồi đưa sang 3ds Max hoặc Unity.</p>
+
+<h2 id="tong-quan">Tổng quan</h2>
+<div class="flow">
+  <span>Unity: prompt + rig</span><b>→</b>
+  <span>Python Bridge</span><b>→</b>
+  <span>MoMask (Text-to-Motion)</span><b>→</b>
+  <span>Blender: retarget lên rig</span><b>→</b>
+  <span>Cascadeur: chỉnh + AutoPhysics</span><b>→</b>
+  <span>FBX → 3ds Max / Unity</span>
+</div>
+<ul>
+  <li><strong>Bán tự động:</strong> Cascadeur luôn mở sẵn. Người dùng tự bấm lệnh trong menu <em>Commands</em>; nếu bật script server thì job được nạp tự động.</li>
+  <li>Mọi tầng giao tiếp qua thư mục job: <code>C:/AnimationBridgePipeline/jobs/&lt;job_id&gt;/</code> gồm <code>job.json</code>, <code>status.json</code>, <code>raw.bvh</code>, <code>raw.fbx</code>, <code>final.fbx</code>, <code>log.txt</code>.</li>
+  <li>Trạng thái job: <code>queued → generating → retargeting → waiting_cascadeur → in_cascadeur → exported</code>, hoặc <code>error</code>.</li>
+</ul>
+
+<h2 id="cai-dat">Cài đặt</h2>
+<h3>1. Công cụ Text-to-Motion</h3>
+<p>Đặt trong <code>E:\AnimationBridgeTools\</code>:</p>
+<ul>
+  <li><code>venv\</code>: Python 3.10, PyTorch CUDA</li>
+  <li><code>momask\</code>: mã nguồn MoMask và model HumanML3D</li>
+  <li><code>.clip\</code>: model CLIP</li>
+  <li><code>blender-4.2.9-windows-x64\</code>: Blender portable, chạy headless để retarget</li>
+</ul>
+<h3>2. Workspace và lệnh Cascadeur</h3>
+<pre><code>pwsh -File install.ps1</code></pre>
+<p>Script này tạo <code>C:/AnimationBridgePipeline/</code>, copy <code>Bridge/</code> vào <code>bridge/</code> và cài lệnh vào <code>&lt;Cascadeur&gt;/resources/scripts/python/commands/AnimationBridge</code>. Sau đó trong Cascadeur chọn <em>Reload scripts</em> hoặc khởi động lại.</p>
+<h3>3. Unity</h3>
+<p>Copy <code>Unity/Assets/AnimationBridge/</code> vào <code>Assets/</code> của project, rồi mở <strong>Tools › Animation Bridge › Prompt To Cascadeur</strong>. Trong phần <em>Settings</em>, nhập <em>Workspace root</em>, <em>Python exe</em> và đường dẫn <em>bridge.py</em>.</p>
+<h3>4. 3ds Max (chưa chạy thử)</h3>
+<p>Scripting › Run Script › <code>3dsMax/AnimationBridgeWatcher.ms</code>, rồi bật “Tự động theo dõi”.</p>
+
+<h2 id="dung-nhanh">Dùng nhanh (5 bước)</h2>
+<ol>
+  <li>Trong Cascadeur: <strong>Commands › MCP › Start script server</strong> (một lần mỗi khi mở Cascadeur).</li>
+  <li>Trong Unity, ở cửa sổ <em>Prompt To Cascadeur</em>: kéo nhân vật (ví dụ Handyman) vào ô <strong>Rig</strong>, chọn nguồn <strong>TextToMotion</strong>, nhập prompt tiếng Anh, chọn độ dài, rồi bấm <strong>Generate</strong>.</li>
+  <li>Chờ khoảng 10–15 giây. Cascadeur tự mở template rig và nạp animation vào nhân vật.</li>
+  <li>Chỉnh animation trong Cascadeur và bật AutoPhysics nếu cần.</li>
+  <li>Chạy <strong>Commands › AnimationBridge › Bridge › Export Job</strong>.</li>
+</ol>
+<div class="note">Nếu script server không chạy, hoặc Cascadeur còn đang mở một job khác, hãy tự bấm <strong>Bridge › Load Next Job</strong>.</div>
+
+<h2 id="unity">Cửa sổ Unity</h2>
+<div class="tw"><table>
+<tr><th>Mục</th><th>Ý nghĩa</th></tr>
+<tr><td>Rig</td><td>Nhân vật trong scene hoặc prefab. Để retarget được, rig cần có Avatar <strong>Humanoid</strong>. Unity tự ghi <code>rig_fbx</code> và <code>human_map</code> vào job.</td></tr>
+<tr><td>Nguồn: TextToMotion</td><td>Tạo animation từ prompt bằng MoMask.</td></tr>
+<tr><td>Nguồn: File</td><td>Dùng nguyên animation trong một FBX có sẵn (ví dụ tải từ Mixamo). Ở chế độ này <strong>prompt bị bỏ qua</strong>.</td></tr>
+<tr><td>FPS</td><td>FPS của clip đầu ra (mặc định 30). Clip được resample đúng theo FPS này.</td></tr>
+<tr><td>Độ dài (giây)</td><td>2–9.8 giây. Đặt 0 để model tự chọn độ dài.</td></tr>
+<tr><td>Bỏ qua Cascadeur</td><td>Dùng thẳng <code>raw.fbx</code> làm <code>final.fbx</code>. Hữu ích để thử phần nhập vào Unity hoặc 3ds Max.</td></tr>
+<tr><td>Jobs gần đây</td><td>Hiện trạng thái từng job, kèm các nút <em>Folder</em>, <em>Import</em> và <em>X</em> (xoá job).</td></tr>
+<tr><td>Clear jobs</td><td>Xoá mọi job không còn chạy. Có thể chọn xoá luôn các clip đã import vào Unity.</td></tr>
+</table></div>
+
+<h2 id="prompt">Viết prompt cho MoMask</h2>
+<p>MoMask được huấn luyện trên HumanML3D: 22 khớp, tối đa khoảng 9.8 giây. Model chỉ hiểu <strong>chuyển động của cơ thể</strong>. Nó không biết đồ vật, máy móc hay câu chuyện.</p>
+<ul>
+  <li>Tả <strong>động tác</strong>, không tả sự kiện. Viết “the right arm is pulled forward”, đừng viết “caught in a machine”.</li>
+  <li>Mỗi câu chỉ nên có 2–3 bước, nối bằng <em>then</em> theo đúng thứ tự xảy ra.</li>
+  <li>Luôn nói rõ tay hoặc chân nào: <em>right / left</em>.</li>
+  <li>Dùng từ phổ biến như <em>walks, runs, kicks, reaches, pulls back, struggles, bends over, falls, stumbles, holds the arm</em>.</li>
+  <li>Cùng một prompt nhưng khác seed sẽ ra chuyển động khác. Nên thử 2–3 lần rồi chọn bản đẹp nhất.</li>
+</ul>
+<div class="tw"><table>
+<tr><th>Prompt</th><th>Kết quả</th></tr>
+<tr><td><code>A person's hand got caught in a crushing machine</code></td><td>Gần như đứng yên, vì model không hiểu.</td></tr>
+<tr><td><code>a person reaches forward with the right hand, then the right arm is suddenly pulled forward and the person struggles, pulling back hard with the whole body</code></td><td>Tốt: với tay ra, bị kéo chúi người, rồi giằng ra.</td></tr>
+<tr><td><code>a person kicks with the right leg</code></td><td>Tốt.</td></tr>
+</table></div>
+<div class="note">Những chi tiết model không làm được (ví dụ tay bị ghim cố định vào máy) thì chỉnh trong Cascadeur: ghim cổ tay vào một điểm trong đoạn frame bị kẹt, sau đó bật AutoPhysics.</div>
+
+<h2 id="cascadeur">Trong Cascadeur</h2>
+<p>Các lệnh nằm trong <strong>Commands › AnimationBridge</strong>:</p>
+<div class="tw"><table>
+<tr><th>Lệnh</th><th>Việc làm</th></tr>
+<tr><td>Bridge › Load Next Job</td><td>Mở job mới nhất đang ở trạng thái <code>waiting_cascadeur</code>. Nếu có <code>rig/cascadeur_template.casc</code>, lệnh mở template rồi nạp animation; nếu không, lệnh import cả FBX.</td></tr>
+<tr><td>Bridge › Export Job</td><td>Lưu <code>edited.casc</code> và xuất <code>final.fbx</code> kèm cờ <code>final.done</code>. Bản Free hiện chưa xuất được FBX.</td></tr>
+<tr><td>Bridge › Build Rig Template</td><td>Tạo template rig (Quick Rigging) tự động từ <code>rig/*_rig_base.fbx</code> và <code>rig/human_map.json</code>.</td></tr>
+</table></div>
+<div class="warn"><strong>Đừng bấm <kbd>Ctrl</kbd>+<kbd>S</kbd> trong tab job.</strong> Tab đó được mở từ template, nên lưu sẽ ghi đè template. Hãy dùng <em>Export Job</em>.</div>
+
+<h2 id="template">Template rig (làm một lần cho mỗi nhân vật)</h2>
+<p>Template là nhân vật đã được Quick Rigging, có sẵn Center of mass để dùng AutoPhysics.</p>
+<ol>
+  <li>Xuất rig ở tư thế gốc (chỉ LOD0):
+<pre><code>blender -b --factory-startup -P Bridge/text_to_motion/export_rig_base.py -- ^
+  &lt;rig.fbx&gt; C:/AnimationBridgePipeline/rig/&lt;Tên&gt;_rig_base.fbx</code></pre></li>
+  <li>Đặt file <code>rig/human_map.json</code> dạng <code>{"Hips": "&lt;tên xương&gt;", ...}</code>. Có thể lấy bảng này từ mục <code>human_map</code> trong <code>job.json</code> của một job bất kỳ.</li>
+  <li>Trong Cascadeur chạy <strong>Bridge › Build Rig Template</strong>. Lệnh tự làm các bước: tạo <code>rig.qrigcasc</code> → bật Rig Mode → Generate rig → tắt Rig Mode → lưu <code>rig/cascadeur_template.casc</code>.</li>
+</ol>
+<h3>Làm bằng tay (phải đúng thứ tự)</h3>
+<ol>
+  <li>Bấm nút <strong>Quick rigging tool</strong>. Thao tác này bật Rig Mode.</li>
+  <li>Trong cửa sổ QRT, bấm ☰ → load template <code>rig.qrigcasc</code>. Đừng dùng mục import JSON rig.</li>
+  <li>Bấm <strong>Add rig elements</strong>.</li>
+  <li>Bấm <strong>Generate rig</strong> ở panel trái. Cascadeur tự thoát Rig Mode.</li>
+  <li>File › Save As → <code>C:/AnimationBridgePipeline/rig/cascadeur_template.casc</code>.</li>
+</ol>
+<div class="warn"><strong>Generate khi chưa vào Rig Mode</strong> sẽ báo <code>Rig mode several animationInfo</code> và không tạo được gì. Lỗi này từng làm Cascadeur bị crash. Ngoài ra, đừng bấm <kbd>Ctrl</kbd>+<kbd>Z</kbd> ngay sau khi Generate.</div>
+
+<h2 id="autophysics">AutoPhysics</h2>
+<ol>
+  <li>Nạp job bằng template (xem phần trên). Nhân vật phải có Center of mass.</li>
+  <li>Bật nút <strong>AutoPhysics</strong> trên thanh công cụ timeline. Bóng xanh (ghost) xuất hiện: đó là phiên bản đã tính vật lý.</li>
+  <li>Chỉnh keyframe cho đến khi bóng xanh khớp ý muốn, rồi chạy <em>Export Job</em>.</li>
+</ol>
+<div class="note">Nếu gặp “Unable to select automatic center of mass”, cảnh có thể chưa được rig. Hãy nạp job qua template, hoặc tạo template trước.</div>
+
+<h2 id="ket-qua">Đưa kết quả về Unity / 3ds Max</h2>
+<ul>
+  <li><strong>Unity:</strong> khi job ở trạng thái <code>exported</code>, clip được tự import vào <code>Assets/AnimationBridge/Imported/</code> với Avatar của rig. Có thể bấm <em>Import</em> để nhập lại.</li>
+  <li><strong>3ds Max:</strong> watcher theo dõi file <code>final.done</code> và merge animation vào scene. Rig trong Max nên dùng bone thường, không dùng Biped/CAT.</li>
+  <li>Nếu export lại cùng một job thì cả hai phía đều tự nạp lại.</li>
+</ul>
+
+<h2 id="cau-hinh">Cấu hình: <code>bridge_config.json</code></h2>
+<pre><code>{
+  "cascadeur_auto_load": true,
+  "cascadeur_server": "http://127.0.0.1:8765",
+  "retarget_to_rig": true,
+  "tools_dir": "E:/AnimationBridgeTools",
+  "momask_python": "E:/AnimationBridgeTools/venv/Scripts/python.exe",
+  "momask_dir": "E:/AnimationBridgeTools/momask",
+  "blender_exe": "E:/AnimationBridgeTools/blender-4.2.9-windows-x64/blender.exe"
+}</code></pre>
+<ul>
+  <li><code>cascadeur_auto_load</code>: đặt <code>false</code> để tắt tự nạp qua script server.</li>
+  <li><code>retarget_to_rig</code>: đặt <code>false</code> để xuất khung xương MoMask (22 xương, không mesh) thay vì retarget lên rig.</li>
+  <li>Biến môi trường <code>ANIM_BRIDGE_ROOT</code> dùng để đổi thư mục workspace cho Cascadeur.</li>
+</ul>
+
+<h2 id="loi">Lỗi thường gặp</h2>
+<div class="tw"><table>
+<tr><th>Hiện tượng</th><th>Cách xử lý</th></tr>
+<tr><td>Prompt không có tác dụng</td><td>Đang chọn nguồn <strong>File</strong>. Chuyển sang <strong>TextToMotion</strong>.</td></tr>
+<tr><td>Cascadeur không tự nạp job</td><td>Bật <em>MCP › Start script server</em>. Nếu một job cũ vẫn ở trạng thái <code>in_cascadeur</code>, hãy Export hoặc xoá job đó rồi bấm Load thủ công.</td></tr>
+<tr><td>Animation gần như đứng yên</td><td>Prompt quá trừu tượng. Viết lại theo phần <a href="#prompt">Viết prompt</a>.</td></tr>
+<tr><td>Template không lưu được</td><td>File template đang mở ở một tab khác. Đóng tab đó rồi chạy lại lệnh.</td></tr>
+<tr><td>Job báo <code>error</code></td><td>Xem <code>log.txt</code> trong thư mục job (nút <em>Folder</em>).</td></tr>
+<tr><td>Unity không cập nhật code mới</td><td>Click vào cửa sổ Unity để Unity recompile.</td></tr>
+</table></div>
+
+<h2 id="gioi-han">Giới hạn hiện tại</h2>
+<ul>
+  <li>Cascadeur Free <strong>không xuất được FBX</strong>. Lệnh <em>Export Job</em> chỉ lưu <code>edited.casc</code>. Khi nâng cấp lên Indie hoặc Pro, lệnh tự xuất <code>final.fbx</code> mà không cần sửa code.</li>
+  <li>MoMask và HumanML3D <strong>chỉ được dùng phi thương mại</strong>.</li>
+  <li>Phần 3ds Max chưa được chạy thử.</li>
+  <li>AutoPhysics vẫn phải bật bằng tay sau khi nạp job.</li>
+</ul>
+</main>
+</div>
+<script>
+function toggleTheme(){var r=document.documentElement,d=r.getAttribute('data-theme');
+var dark=d?d==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+r.setAttribute('data-theme',dark?'light':'dark');try{localStorage.setItem('theme',r.getAttribute('data-theme'))}catch(e){}}
+try{var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}
+</script>
+</body>
+</html>
