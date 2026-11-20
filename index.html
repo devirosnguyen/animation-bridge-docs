@@ -51,6 +51,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <a href="#quick-start">Quick start</a>
   <a href="#unity">Unity window</a>
   <a href="#hymotion">HY-Motion 1.0</a>
+  <a href="#video">Video mocap</a>
   <a href="#fingers">Finger motion</a>
   <a href="#prompt">Writing prompts</a>
   <a href="#cascadeur">In Cascadeur</a>
@@ -120,6 +121,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <tr><td>Seed</td><td>-1 = random. Reuse a seed to get the same motion again.</td></tr>
 <tr><td>Thêm ngón tay (HandPrior) — add fingers</td><td>Generates natural finger motion that follows the body motion. See <a href="#fingers">Finger motion</a>.</td></tr>
 <tr><td>Pose bàn tay — hand poses</td><td>Rows of <em>hand</em> (Right / Left / Both), <em>pose</em> and a time range in seconds (<em>từ</em> = from, <em>đến</em> = to). Each pose is held over its range and blended in and out.</td></tr>
+<tr><td>Source: Video</td><td>Builds the animation from a video of one person (GVHMR video mocap). See <a href="#video">Video mocap</a>.</td></tr>
 <tr><td>Source: File</td><td>Uses the animation from an existing FBX as is (e.g. downloaded from Mixamo). In this mode <strong>the prompt is ignored</strong>.</td></tr>
 <tr><td>FPS</td><td>Frame rate of the output clip (default 30). The clip is resampled to exactly this rate.</td></tr>
 <tr><td>Độ dài (giây) — duration in seconds</td><td>MoMask: 2–9.8 seconds, 0 lets the model pick the length. HY-Motion: 1–12 seconds, 0 = 5 seconds.</td></tr>
@@ -138,6 +140,38 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <li>License: Tencent HY-Motion 1.0 Community License. It does not apply in the EU, the UK or South Korea, and products with more than 1 million monthly active users need a separate license from Tencent.</li>
 </ul>
 <p>Set the default model for jobs without a model in <code>bridge_config.json</code> (<code>"t2m_model": "momask"</code> or <code>"hymotion"</code>).</p>
+
+<h2 id="video">Video mocap</h2>
+<p>Source = <strong>Video</strong> turns a video of one person into body animation with <a href="https://github.com/zju3dv/GVHMR">GVHMR</a>, locally. It takes about 3 seconds of processing per second of video on an RTX 4080.</p>
+<ol>
+  <li><strong>GVHMR</strong>: person tracking, 2D pose, then 3D body motion in world space (SMPL-X, 22 body joints). Writes <code>mocap.bvh</code> and <code>qa_overlay.mp4</code>.</li>
+  <li><strong>Cleanup</strong> (<code>mocap_cleanup.py</code>): Savitzky–Golay smoothing, then foot locking. A foot is planted while it is near the local floor and almost still. Its ankle is pinned and the leg is re-solved with two-bone IK. Writes <code>raw.bvh</code> and <code>cleanup.json</code>, which holds the ankle sliding before and after cleanup.</li>
+  <li>From here on, it is the same as Text-to-Motion: retarget, fingers (HandPrior, hand poses), Cascadeur, Unity.</li>
+</ol>
+<div class="tw"><table>
+<tr><th>Field</th><th>Meaning</th></tr>
+<tr><td>Video</td><td>mp4, mov, avi or mkv. Any frame rate; it is resampled to 30 fps.</td></tr>
+<tr><td>Cắt từ … đến — trim from … to</td><td>Seconds. 0 for the end means the whole video.</td></tr>
+<tr><td>Camera di chuyển — moving camera</td><td>Experimental: estimates the camera rotation with SimpleVO. Leave it off for a tripod or static camera, which is more accurate.</td></tr>
+<tr><td>Khoá chân — foot lock</td><td>Removes foot sliding. On by default.</td></tr>
+<tr><td>Làm mượt — smoothing</td><td>Window in frames; 0 turns it off and 7 is the default. Higher values are smoother but soften fast hits.</td></tr>
+<tr><td>QA (job list)</td><td>Opens <code>qa_overlay.mp4</code>, the predicted skeleton drawn over the video. Check it before importing.</td></tr>
+</table></div>
+<p><strong>Recording tips:</strong></p>
+<ul>
+  <li>One person, with the whole body in frame, including the feet.</li>
+  <li>Even light and a static camera at about hip height.</li>
+  <li>Avoid loose clothes that hide the knees.</li>
+  <li>Avoid long stretches where the person is hidden.</li>
+</ul>
+<p>Measured on two demo clips (tennis, dance): ankle sliding during foot contacts went from 7–17 cm/s to under 1 cm/s after cleanup.</p>
+<p><strong>Setup:</strong></p>
+<ul>
+  <li>Code: <code>E:\AnimationBridgeTools\gvhmr</code>. Python: <code>venv-gvhmr</code>. Config keys: <code>gvhmr_python</code>, <code>gvhmr_dir</code>.</li>
+  <li>Body models: register (free) at <a href="https://smpl-x.is.tue.mpg.de/">smpl-x.is.tue.mpg.de</a> and <a href="https://smpl.is.tue.mpg.de/">smpl.is.tue.mpg.de</a>, then put the files in <code>E:\AnimationBridgeTools\body_models\smplx\SMPLX_{NEUTRAL,MALE,FEMALE}.npz</code> and <code>smpl\SMPL_{NEUTRAL,MALE,FEMALE}.pkl</code>. They must not be redistributed.</li>
+  <li>On Windows, a small <code>pytorch3d</code> shim (transforms only) replaces the missing wheel.</li>
+</ul>
+<div class="note">GVHMR, SMPL and SMPL-X are for <strong>non-commercial research use</strong> only.</div>
 
 <h2 id="fingers">Finger motion</h2>
 <p>MoMask and HY-Motion animate the body only. Fingers are added after retargeting, in two optional layers:</p>
@@ -237,6 +271,8 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   "hymotion_python": "E:/AnimationBridgeTools/venv-hymotion/Scripts/python.exe",
   "hymotion_dir": "E:/AnimationBridgeTools/hymotion",
   "handprior_dir": "E:/AnimationBridgeTools/handprior/hand_motion_generator",
+  "gvhmr_python": "E:/AnimationBridgeTools/venv-gvhmr/Scripts/python.exe",
+  "gvhmr_dir": "E:/AnimationBridgeTools/gvhmr",
   "blender_exe": "E:/AnimationBridgeTools/blender-4.2.9-windows-x64/blender.exe"
 }</code></pre>
 <ul>
