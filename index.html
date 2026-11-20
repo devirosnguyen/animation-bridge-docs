@@ -143,6 +143,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <tr><th>Command</th><th>What it does</th></tr>
 <tr><td>Bridge › Load Next Job</td><td>Opens the newest job in the <code>waiting_cascadeur</code> state. If <code>rig/cascadeur_template.casc</code> exists, it opens the template and loads the animation; otherwise it imports the whole FBX.</td></tr>
 <tr><td>Bridge › Export Job</td><td>Saves <code>edited.casc</code> and exports <code>final.fbx</code> plus a <code>final.done</code> flag. The Free version can't export FBX yet.</td></tr>
+<tr><td>Bridge › Build Humanoid Template</td><td>Builds the generic Humanoid skeleton with Blender and Quick Rigs it into <code>rig/humanoid/cascadeur_template.casc</code>. See <a href="#template">Rig template</a>.</td></tr>
 <tr><td>Bridge › Build Rig Template</td><td>Builds the rig template (Quick Rigging) automatically from <code>rig/*_rig_base.fbx</code> and <code>rig/human_map.json</code>.</td></tr>
 </table></div>
 <div class="warn"><strong>Don't press <kbd>Ctrl</kbd>+<kbd>S</kbd> in a job tab.</strong> The tab is opened from the template, so saving overwrites the template. Use <em>Export Job</em> instead.</div>
@@ -156,6 +157,14 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <li>Create <code>rig/human_map.json</code> in the form <code>{"Hips": "&lt;bone name&gt;", ...}</code>. You can copy this map from the <code>human_map</code> entry in any job's <code>job.json</code>.</li>
   <li>In Cascadeur run <strong>Bridge › Build Rig Template</strong>. It does these steps for you: creates <code>rig.qrigcasc</code> → enters Rig Mode → Generate rig → leaves Rig Mode → saves <code>rig/cascadeur_template.casc</code>.</li>
 </ol>
+<h3>Generic Humanoid template (recommended)</h3>
+<p>Instead of one template per character, you can edit every job on a single standard skeleton:</p>
+<ol>
+  <li>In Cascadeur run <strong>Bridge › Build Humanoid Template</strong> (once). Blender builds a T-pose Humanoid skeleton with a simple mannequin mesh in <code>rig/humanoid/</code>, then the command Quick Rigs it and saves <code>rig/humanoid/cascadeur_template.casc</code>.</li>
+  <li>Set <code>"template": "humanoid"</code> in <code>bridge_config.json</code>.</li>
+</ol>
+<p>Text-to-motion jobs are then retargeted onto this skeleton and opened on the mannequin in Cascadeur. Unity imports the result as a Humanoid clip, so it plays on any Humanoid character with no per-character setup. The <em>File</em> source still uses the character template above.</p>
+<div class="note">Bones use Mixamo-style names (<code>LeftArm</code>, <code>LeftForeArm</code>, <code>LeftUpLeg</code>…). Cascadeur's Quick Rigging drops joints with Unity-style names such as <code>LeftUpperArm</code>, <code>LeftLowerLeg</code> or <code>LeftToes</code>.</div>
 <h3>Doing it by hand (order matters)</h3>
 <ol>
   <li>Click the <strong>Quick rigging tool</strong> button. This turns on Rig Mode.</li>
@@ -185,6 +194,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <pre><code>{
   "cascadeur_auto_load": true,
   "cascadeur_server": "http://127.0.0.1:8765",
+  "template": "humanoid",
   "retarget_to_rig": true,
   "tools_dir": "E:/AnimationBridgeTools",
   "momask_python": "E:/AnimationBridgeTools/venv/Scripts/python.exe",
@@ -193,6 +203,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 }</code></pre>
 <ul>
   <li><code>cascadeur_auto_load</code>: set to <code>false</code> to stop auto-loading through the script server.</li>
+  <li><code>template</code>: <code>"humanoid"</code> uses the generic Humanoid template for text-to-motion jobs (falls back to the job's rig if it hasn't been built yet). Leave it out to retarget onto the character from Unity.</li>
   <li><code>retarget_to_rig</code>: set to <code>false</code> to output the bare MoMask skeleton (22 bones, no mesh) instead of retargeting to the rig.</li>
   <li>The <code>ANIM_BRIDGE_ROOT</code> environment variable changes the workspace folder Cascadeur uses.</li>
 </ul>
