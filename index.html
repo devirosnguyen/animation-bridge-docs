@@ -143,6 +143,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <tr><th>Command</th><th>What it does</th></tr>
 <tr><td>Bridge › Load Next Job</td><td>Opens the newest job in the <code>waiting_cascadeur</code> state. If <code>rig/cascadeur_template.casc</code> exists, it opens the template and loads the animation; otherwise it imports the whole FBX.</td></tr>
 <tr><td>Bridge › Export Job</td><td>Saves <code>edited.casc</code> and exports <code>final.fbx</code> plus a <code>final.done</code> flag. The Free version can't export FBX yet.</td></tr>
+<tr><td>Bridge › Quick Rig Current Scene</td><td>Quick Rigs the character in the current tab (Center of mass, ready for AutoPhysics). Bones are matched by name automatically: Unity Humanoid (<code>Left_UpperArm</code>), Mixamo, UE and Biped. The scene is not saved, so use File › Save afterwards.</td></tr>
 <tr><td>Bridge › Build Humanoid Template</td><td>Builds the generic Humanoid skeleton with Blender and Quick Rigs it into <code>rig/humanoid/cascadeur_template.casc</code>. See <a href="#template">Rig template</a>.</td></tr>
 <tr><td>Bridge › Build Rig Template</td><td>Builds the rig template (Quick Rigging) automatically from <code>rig/*_rig_base.fbx</code> and <code>rig/human_map.json</code>.</td></tr>
 </table></div>
@@ -154,7 +155,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <li>Export the rig in its rest pose (LOD0 only):
 <pre><code>blender -b --factory-startup -P Bridge/text_to_motion/export_rig_base.py -- ^
   &lt;rig.fbx&gt; C:/AnimationBridgePipeline/rig/&lt;Name&gt;_rig_base.fbx</code></pre></li>
-  <li>Create <code>rig/human_map.json</code> in the form <code>{"Hips": "&lt;bone name&gt;", ...}</code>. You can copy this map from the <code>human_map</code> entry in any job's <code>job.json</code>.</li>
+  <li>Optional: create <code>rig/human_map.json</code> in the form <code>{"Hips": "&lt;bone name&gt;", ...}</code>. You can copy this map from the <code>human_map</code> entry in any job's <code>job.json</code>. Without it, bones are matched by name.</li>
   <li>In Cascadeur run <strong>Bridge › Build Rig Template</strong>. It does these steps for you: creates <code>rig.qrigcasc</code> → enters Rig Mode → Generate rig → leaves Rig Mode → saves <code>rig/cascadeur_template.casc</code>.</li>
 </ol>
 <h3>Generic Humanoid template (recommended)</h3>
@@ -164,7 +165,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <li>Set <code>"template": "humanoid"</code> in <code>bridge_config.json</code>.</li>
 </ol>
 <p>Text-to-motion jobs are then retargeted onto this skeleton and opened on the mannequin in Cascadeur. Unity imports the result as a Humanoid clip, so it plays on any Humanoid character with no per-character setup. The <em>File</em> source still uses the character template above.</p>
-<div class="note">Bones use Mixamo-style names (<code>LeftArm</code>, <code>LeftForeArm</code>, <code>LeftUpLeg</code>…). Cascadeur's Quick Rigging drops joints with Unity-style names such as <code>LeftUpperArm</code>, <code>LeftLowerLeg</code> or <code>LeftToes</code>.</div>
+<div class="note">Cascadeur's Quick Rigging silently drops joints with Unity-style names such as <code>Left_UpperArm</code>, <code>Left_LowerLeg</code> or <code>Left_Toes</code>, so arms and legs come out unmapped. The Bridge commands work around this by renaming joints temporarily while rigging and restoring the original names afterwards. For a character that already has Unity-style names, open it and run <strong>Bridge › Quick Rig Current Scene</strong> instead of loading <code>rig.qrigcasc</code> by hand.</div>
 <h3>Doing it by hand (order matters)</h3>
 <ol>
   <li>Click the <strong>Quick rigging tool</strong> button. This turns on Rig Mode.</li>
