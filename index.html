@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Animation Bridge Guide</title>
-<meta name="description" content="How to use the Unity → Text-to-Motion (MoMask) → Cascadeur → 3ds Max / Unity pipeline">
+<meta name="description" content="How to use the Unity → Text-to-Motion (MoMask / HY-Motion 1.0) → Cascadeur → 3ds Max / Unity pipeline">
 <style>
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#5f5d57;--line:#e3e0d8;--card:#ffffff;--accent:#2f6f5e;--accent-bg:#e6f1ed;--warn:#8a5a00;--warn-bg:#fff4dc;--code-bg:#f1efe9}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151614;--fg:#e8e6e1;--muted:#a19e96;--line:#2e2f2b;--card:#1c1d1a;--accent:#7cc4ad;--accent-bg:#1d2e28;--warn:#f0c068;--warn-bg:#2e2615;--code-bg:#24251f}}
@@ -50,6 +50,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <a href="#install">Installation</a>
   <a href="#quick-start">Quick start</a>
   <a href="#unity">Unity window</a>
+  <a href="#hymotion">HY-Motion 1.0</a>
   <a href="#prompt">Writing prompts</a>
   <a href="#cascadeur">In Cascadeur</a>
   <a href="#template">Rig template</a>
@@ -68,7 +69,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <div class="flow">
   <span>Unity: prompt + rig</span><b>→</b>
   <span>Python Bridge</span><b>→</b>
-  <span>MoMask (Text-to-Motion)</span><b>→</b>
+  <span>MoMask / HY-Motion (Text-to-Motion)</span><b>→</b>
   <span>Blender: retarget to rig</span><b>→</b>
   <span>Cascadeur: edit + AutoPhysics</span><b>→</b>
   <span>FBX → 3ds Max / Unity</span>
@@ -86,6 +87,8 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <li><code>venv\</code>: Python 3.10, PyTorch CUDA</li>
   <li><code>momask\</code>: MoMask source code and HumanML3D models</li>
   <li><code>.clip\</code>: CLIP model</li>
+  <li><code>venv-hymotion\</code>: Python 3.10, PyTorch 2.5.1 CUDA (HY-Motion only)</li>
+  <li><code>hymotion\</code>: HY-Motion 1.0 source code; <code>hymotion\ckpts\</code> holds <code>tencent\HY-Motion-1.0</code> (4.2 GB), <code>Qwen3-8B</code> (16.4 GB) and <code>clip-vit-large-patch14</code> (1.7 GB)</li>
   <li><code>blender-4.2.9-windows-x64\</code>: portable Blender, run headless for retargeting</li>
 </ul>
 <h3>2. Workspace and Cascadeur commands</h3>
@@ -111,14 +114,27 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <div class="tw"><table>
 <tr><th>Field</th><th>Meaning</th></tr>
 <tr><td>Rig</td><td>A character in the scene or a prefab. To retarget, the rig needs a <strong>Humanoid</strong> Avatar. Unity writes <code>rig_fbx</code> and <code>human_map</code> into the job automatically.</td></tr>
-<tr><td>Source: TextToMotion</td><td>Generates animation from the prompt with MoMask.</td></tr>
+<tr><td>Source: TextToMotion</td><td>Generates animation from the prompt.</td></tr>
+<tr><td>Model</td><td><strong>MoMask</strong> (fast, about 10 s), <strong>HYMotion</strong> (HY-Motion 1.0, better quality and better at longer prompts, about 45 s) or <strong>HYMotionLite</strong> (smaller HY-Motion model, needs a separate download).</td></tr>
+<tr><td>Seed</td><td>-1 = random. Reuse a seed to get the same motion again.</td></tr>
 <tr><td>Source: File</td><td>Uses the animation from an existing FBX as is (e.g. downloaded from Mixamo). In this mode <strong>the prompt is ignored</strong>.</td></tr>
 <tr><td>FPS</td><td>Frame rate of the output clip (default 30). The clip is resampled to exactly this rate.</td></tr>
-<tr><td>Độ dài (giây) — duration in seconds</td><td>2–9.8 seconds. Set 0 to let the model pick the length.</td></tr>
+<tr><td>Độ dài (giây) — duration in seconds</td><td>MoMask: 2–9.8 seconds, 0 lets the model pick the length. HY-Motion: 1–12 seconds, 0 = 5 seconds.</td></tr>
 <tr><td>Bỏ qua Cascadeur — skip Cascadeur</td><td>Uses <code>raw.fbx</code> directly as <code>final.fbx</code>. Handy for testing the Unity or 3ds Max import.</td></tr>
 <tr><td>Jobs gần đây — recent jobs</td><td>Shows each job's state, with <em>Folder</em>, <em>Import</em> and <em>X</em> (delete job) buttons.</td></tr>
 <tr><td>Clear jobs</td><td>Deletes every job that is no longer running. Optionally also deletes the clips already imported into Unity.</td></tr>
 </table></div>
+
+<h2 id="hymotion">HY-Motion 1.0</h2>
+<p>HY-Motion 1.0 (Tencent Hunyuan) is a 1B-parameter flow-matching model trained on a much larger motion dataset than MoMask. It follows longer, multi-step prompts better. It runs locally:</p>
+<ul>
+  <li>Its text encoder, Qwen3-8B, needs 16 GB in bf16 and does not fit next to the motion model on a 16 GB GPU. The weights stay in RAM and each layer is moved to the GPU only while it runs. This takes about 35 s per prompt; the motion itself takes about 6 s.</li>
+  <li>Needs about 20 GB of free RAM while encoding.</li>
+  <li>Output: 22 body joints at 30 fps, written as a BVH with the same bone names as MoMask, so retargeting and Cascadeur work the same. Fingers are not animated.</li>
+  <li>The prompt rewriter and duration LLM are not used: write the prompt in English, under 60 words, and set the duration yourself.</li>
+  <li>License: Tencent HY-Motion 1.0 Community License. It does not apply in the EU, the UK or South Korea, and products with more than 1 million monthly active users need a separate license from Tencent.</li>
+</ul>
+<p>Set the default model for jobs without a model in <code>bridge_config.json</code> (<code>"t2m_model": "momask"</code> or <code>"hymotion"</code>).</p>
 
 <h2 id="prompt">Writing prompts for MoMask</h2>
 <p>MoMask is trained on HumanML3D: 22 joints, up to about 9.8 seconds. The model only understands <strong>body motion</strong>. It knows nothing about objects, machines or stories.</p>
@@ -200,11 +216,15 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   "tools_dir": "E:/AnimationBridgeTools",
   "momask_python": "E:/AnimationBridgeTools/venv/Scripts/python.exe",
   "momask_dir": "E:/AnimationBridgeTools/momask",
+  "t2m_model": "momask",
+  "hymotion_python": "E:/AnimationBridgeTools/venv-hymotion/Scripts/python.exe",
+  "hymotion_dir": "E:/AnimationBridgeTools/hymotion",
   "blender_exe": "E:/AnimationBridgeTools/blender-4.2.9-windows-x64/blender.exe"
 }</code></pre>
 <ul>
   <li><code>cascadeur_auto_load</code>: set to <code>false</code> to stop auto-loading through the script server.</li>
   <li><code>template</code>: <code>"humanoid"</code> uses the generic Humanoid template for text-to-motion jobs (falls back to the job's rig if it hasn't been built yet). Leave it out to retarget onto the character from Unity.</li>
+  <li><code>t2m_model</code>: default text-to-motion model when the job does not name one: <code>momask</code>, <code>hymotion</code> or <code>hymotion_lite</code>.</li>
   <li><code>retarget_to_rig</code>: set to <code>false</code> to output the bare MoMask skeleton (22 bones, no mesh) instead of retargeting to the rig.</li>
   <li>The <code>ANIM_BRIDGE_ROOT</code> environment variable changes the workspace folder Cascadeur uses.</li>
 </ul>
@@ -224,7 +244,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <ul>
   <li>Cascadeur Free <strong>can't export FBX</strong>. <em>Export Job</em> only saves <code>edited.casc</code>. After upgrading to Indie or Pro, the command exports <code>final.fbx</code> with no code changes.</li>
   <li>MoMask and HumanML3D are <strong>for non-commercial use only</strong>.</li>
-  <li>MoMask only understands simple prompts and has no fingers (22 joints). <strong>HY-Motion 1.0</strong> (Tencent Hunyuan) gives better quality and includes fingers, but needs about 16 GB more disk space for the Qwen3-8B text encoder. <em>(Update coming soon.)</em></li>
+  <li>MoMask only understands simple prompts. Neither model animates fingers. For better quality, choose <strong>HY-Motion 1.0</strong> (see its license notes above).</li>
   <li>The 3ds Max side hasn't been tested yet.</li>
   <li>AutoPhysics still has to be turned on by hand after a job loads.</li>
 </ul>
