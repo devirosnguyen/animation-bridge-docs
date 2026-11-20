@@ -153,7 +153,7 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
 <tr><th>Field</th><th>Meaning</th></tr>
 <tr><td>Video</td><td>mp4, mov, avi or mkv. Any frame rate; it is resampled to 30 fps.</td></tr>
 <tr><td>Cắt từ … đến — trim from … to</td><td>Seconds. 0 for the end means the whole video.</td></tr>
-<tr><td>Camera di chuyển — moving camera</td><td>Experimental: estimates the camera rotation with SimpleVO. Leave it off for a tripod or static camera, which is more accurate.</td></tr>
+<tr><td>Camera di chuyển — moving camera</td><td>For handheld or panning shots. The camera motion is estimated with <strong>DPVO</strong>, which runs inside the WSL2 distro set by <code>wsl_distro</code> because DPVO only builds on Linux. This is about 2–3 times slower. Without WSL, the faster but rougher SimpleVO is used. Leave it off for a tripod or static camera, which is more accurate.</td></tr>
 <tr><td>Tự tách cảnh — split shots</td><td>On by default. Turn it off only for a single continuous take.</td></tr>
 <tr><td>Mocap ngón tay (Dyn-HaMR) — finger mocap</td><td>Real finger motion from the video, using <a href="https://github.com/ZhengdiYu/Dyn-HaMR">Dyn-HaMR</a> (HaMeR + MANO). It is slow: about 35 s of processing per second of video. Frames where a hand is not tracked use HandPrior; the switch is eased over 6 frames.</td></tr>
 <tr><td>Khoá chân — foot lock</td><td>Removes foot sliding. On by default.</td></tr>
@@ -173,6 +173,14 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   <li>Code: <code>E:\AnimationBridgeTools\gvhmr</code>. Python: <code>venv-gvhmr</code>. Config keys: <code>gvhmr_python</code>, <code>gvhmr_dir</code>.</li>
   <li>Body models: register (free) at <a href="https://smpl-x.is.tue.mpg.de/">smpl-x.is.tue.mpg.de</a> and <a href="https://smpl.is.tue.mpg.de/">smpl.is.tue.mpg.de</a>, then put the files in <code>E:\AnimationBridgeTools\body_models\smplx\SMPLX_{NEUTRAL,MALE,FEMALE}.npz</code> and <code>smpl\SMPL_{NEUTRAL,MALE,FEMALE}.pkl</code>. They must not be redistributed.</li>
   <li>On Windows, a small <code>pytorch3d</code> shim (transforms only) replaces the missing wheel.</li>
+  <li><strong>Moving camera (WSL2):</strong>
+    <ul>
+      <li>Import Ubuntu 22.04 as a distro named <code>mocap</code> (for example under <code>D:\WSL\mocap</code>).</li>
+      <li>Run <code>wsl -d mocap -u root -- bash /mnt/d/WSL/setup_mocap.sh</code>. It installs the CUDA 12.1 toolkit, GVHMR with the Linux pytorch3d wheel, and compiles DPVO.</li>
+      <li>The checkpoints and body models are shared from <code>E:</code> through <code>/mnt/e</code>.</li>
+      <li>Set <code>"wsl_distro": "mocap"</code> in <code>bridge_config.json</code>.</li>
+    </ul>
+  </li>
 </ul>
 <p><strong>Finger mocap notes:</strong></p>
 <ul>
@@ -286,6 +294,9 @@ kbd{font-family:inherit;font-size:.85em;border:1px solid var(--line);border-bott
   "handmocap_dir": "E:/AnimationBridgeTools/handmocap",
   "handmocap_iters": 50,
   "shot_blend": 0.3,
+  "wsl_distro": "mocap",
+  "wsl_gvhmr_python": "/opt/venv-gvhmr/bin/python",
+  "wsl_gvhmr_dir": "/opt/gvhmr",
   "blender_exe": "E:/AnimationBridgeTools/blender-4.2.9-windows-x64/blender.exe"
 }</code></pre>
 <ul>
